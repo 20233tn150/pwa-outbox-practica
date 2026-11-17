@@ -1,7 +1,7 @@
+importScripts('./db-helper.js');
 
-const CACHE_NAME = 'pwa-outbox-shell-v1';
-
-const STATIC_ASSETS = [
+const CACHE_STATIC_NAME = 'static-outbox-v3';
+const STATIC_FILES = [
   './',
   './index.html',
   './style.css',
@@ -16,8 +16,8 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS);
+    caches.open(CACHE_STATIC_NAME).then((cache) => {
+      return cache.addAll(STATIC_FILES);
     })
   );
 });
@@ -32,7 +32,7 @@ self.addEventListener('activate', (event) => {
       .then((keys) => {
         return Promise.all(
           keys.map((key) => {
-            if (key !== CACHE_NAME) {
+            if (key !== CACHE_STATIC_NAME) {
               console.log('[SW] Eliminando caché antigua:', key);
               return caches.delete(key);
             }
@@ -58,4 +58,70 @@ self.addEventListener('fetch', (event) => {
       return respuestaCache || fetch(event.request);
     })
   );
+});
+
+
+function notificarClientesActualizacion() {
+  return self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+    .then((clientes) => {
+      clientes.forEach((cliente) => {
+        cliente.postMessage({
+          tipo: 'OUTBOX_SINCRONIZADO',
+          timestamp: Date.now()
+        });
+      });
+    });
+}
+
+
+// Motor de Sincronización en Segundo Plano
+function sincronizarPendientesSW() {
+  console.log('[SW-Sync] Ejecutando barrido de transacciones pendientes...');
+
+  return obtenerTodosLosRegistros()
+    .then((registros) => {
+      const pendientes = registros.filter((item) => item.estado === 'pendiente');
+
+      if (pendientes.length === 0) {
+        console.log('[SW-Sync] Cola limpia. Nada por sincronizar.');
+        return;
+      }
+
+      const promesasDeEnvio = pendientes.map((item) => {
+        return fetch('https://jsonplaceholder.typicode.com/posts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: item.titulo,
+            body: item.descripcion
+          })
+        })
+          .then((respuesta) => {
+            if (!respuesta.ok) {
+              throw new Error(`Error HTTP ${respuesta.status} al sincronizar ID ${item.id}`);
+            }
+            return actualizarEstadoRegistro(item.id, 'sincronizado');
+          });
+      });
+
+      return Promise.all(promesasDeEnvio)
+        .then(() => notificarClientesActualizacion());
+    });
+}
+
+
+// Escucha del evento 'sync' disparado por el navegador cuando hay conectividad y la etiqueta coincide
+self.addEventListener('sync', (event) => {
+  console.log('[SW-Sync] Evento sync disparado con etiqueta:', event.tag);
+
+  if (event.tag === 'sync-reportes') {
+    event.waitUntil(
+      sincronizarPendientesSW()
+        .catch((error) => {
+          console.error('[SW-Sync] Falla en sincronización; el navegador reintentará luego:', error);
+          // Relanzar el error indica al navegador que debe programar un reintento automático
+          throw error;
+        })
+    );
+  }
 });
