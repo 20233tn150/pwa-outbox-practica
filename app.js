@@ -223,3 +223,38 @@ if ('serviceWorker' in navigator) {
 // Arrancar estado inicial al cargar la página
 actualizarIndicadorRed();
 renderizarColaOutbox();
+
+
+// 7. Instalabilidad Nativa: captura del evento beforeinstallprompt (Fragmento B)
+let eventoInstalacionDiferido = null;
+
+window.addEventListener('beforeinstallprompt', (event) => {
+  // Evita que el mini-banner automático aparezca antes de tiempo
+  event.preventDefault();
+  eventoInstalacionDiferido = event;
+
+  // Muestra tu botón personalizado de instalación en la UI
+  const btnInstalar = document.getElementById('btn-instalar');
+  btnInstalar.hidden = false;
+});
+
+// Desafío de Ensamblado 1: click del botón -> prompt() y .userChoice.then(...)
+const btnInstalar = document.getElementById('btn-instalar');
+if (btnInstalar) {
+  btnInstalar.addEventListener('click', () => {
+    if (!eventoInstalacionDiferido) return;
+
+    eventoInstalacionDiferido.prompt();
+
+    eventoInstalacionDiferido.userChoice.then((resultado) => {
+      if (resultado.outcome === 'accepted') {
+        console.log('[PWA] El usuario aceptó la instalación.');
+      } else {
+        console.log('[PWA] El usuario rechazó la instalación.');
+      }
+
+      eventoInstalacionDiferido = null;
+      btnInstalar.hidden = true;
+    });
+  });
+}

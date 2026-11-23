@@ -133,6 +133,15 @@ button {
   background-color: #cbd5e1;
 }
 
+#btn-instalar {
+  background-color: #2563eb;
+  color: #ffffff;
+}
+
+#btn-instalar:hover {
+  background-color: #1d4ed8;
+}
+
 /* Cabecera y Lista de Bandeja de Salida */
 .header-lista {
   display: flex;

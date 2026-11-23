@@ -1,13 +1,15 @@
 importScripts('./db-helper.js');
 
-const CACHE_STATIC_NAME = 'static-outbox-v3';
+const CACHE_STATIC_NAME = 'static-outbox-v4';
 const STATIC_FILES = [
   './',
   './index.html',
   './style.css',
   './db-helper.js',
   './app.js',
-  './manifest.json'
+  './manifest.json',
+  './icons/icon-192.png',
+  './icons/icon-512.png'
 ];
 
 // 1. INSTALL: Guardar el App Shell en Cache Storage
